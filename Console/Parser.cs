@@ -68,6 +68,7 @@ class Parser
                 //    Temp = currentLine.Slice(numberStartPosition, currentLine.Length - numberStartPosition).ToArray();
                 //    //TODO pase number as short rather than decimal, store the number of number after the dot
                 //    // unicode number are always on 1 byte
+                //    // Look to extract the sign also ?
                 //});
 
                 lastFilePosition += nextLineFeed;
