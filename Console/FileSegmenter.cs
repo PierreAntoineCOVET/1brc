@@ -35,7 +35,6 @@ static class FileSegmenter
     /// <returns>Array of adjusted segments.</returns>
     private static FileSegment[] AdjustForEndOfLine(SafeFileHandle fileHandle, FileSegment[] fileSegments, long fileLength)
     {
-        var lineFeedSpan = new Span<byte>(LineFeed);
         Span<byte> buffer = stackalloc byte[ReadBufferSize];
 
         for (int i = 0; i < fileSegments.Length - 1; i++)
@@ -44,9 +43,9 @@ static class FileSegmenter
 
             RandomAccess.Read(fileHandle, buffer, fileOffset);
 
-            var endOfLineIndex = buffer.IndexOf(lineFeedSpan);
+            var endOfLineIndex = buffer.IndexOf(LineFeed);
 
-            fileSegments[i].Length = fileOffset - fileSegments[i].Offset + endOfLineIndex + lineFeedSpan.Length;
+            fileSegments[i].Length = fileOffset - fileSegments[i].Offset + endOfLineIndex + LineFeed.Length;
             fileSegments[i + 1].Offset = fileSegments[i].End;
         }
 

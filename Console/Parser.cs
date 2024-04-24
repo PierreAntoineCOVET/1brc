@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32.SafeHandles;
+﻿using Console;
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.IO.MemoryMappedFiles;
@@ -9,29 +10,70 @@ using System.Threading.Tasks;
 
 namespace My1Brc;
 
-static class Parser
+class Parser
 {
-    public unsafe void Parse(FileSegment fileSegment, SafeFileHandle fileHandle)
+    private const int ReadBufferSize = 512;
+    private static readonly byte[] LineFeed = Encoding.UTF8.GetBytes("\n");
+    private static readonly byte[] Separator = Encoding.UTF8.GetBytes(";");
+
+    public void Parse(FileSegment fileSegment, SafeFileHandle fileHandle)
     {
+        foreach (var byteLine in GetByteLines(fileSegment, fileHandle))
+        {
+            Aggregate(byteLine);
+        }        
+    }
+
+    private void Aggregate(StationData line)
+    {
+        System.Console.WriteLine(Encoding.UTF8.GetString(line.Name));
+        System.Console.WriteLine(Encoding.UTF8.GetString(line.Temp));
+    }
+
+    private static IEnumerable<StationData> GetByteLines(FileSegment fileSegment, SafeFileHandle fileHandle)
+    {
+        var results = new List<StationData>();
+
         long fileLength = RandomAccess.GetLength(fileHandle);
 
-        using var memoryMappedFile = MemoryMappedFile.CreateFromFile(
-            fileHandle, null, fileLength,
-            MemoryMappedFileAccess.Read, HandleInheritability.None, true);
-
-        using var viewAccessor = memoryMappedFile.CreateViewAccessor(fileSegment.Offset, fileSegment.Length, MemoryMappedFileAccess.Read);
-
-        using var memoryMappedViewHandle = viewAccessor.SafeMemoryMappedViewHandle;
-
-        byte* memoryMapPointer = null;
-        memoryMappedViewHandle.AcquirePointer(ref memoryMapPointer);
-
-        var currentPosition = fileSegment.Offset;
+        var currentFilePosition = fileSegment.Offset;
         var endOfSegment = fileSegment.End;
 
-        while (currentPosition < endOfSegment)
+        Span<byte> buffer = stackalloc byte[ReadBufferSize];
+
+        while (currentFilePosition < endOfSegment)
         {
-            var data = Vector256.Load()
+            RandomAccess.Read(fileHandle, buffer, currentFilePosition);
+
+            var lastLineFeed = buffer.LastIndexOf(LineFeed) + LineFeed.Length;
+            var lastFilePosition = 0;
+
+            while (lastFilePosition < lastLineFeed)
+            {
+                var nextLineFeed = buffer.IndexOf(LineFeed) + LineFeed.Length;
+                var currentLine = buffer.Slice(lastFilePosition, nextLineFeed);
+
+                var separator = currentLine.IndexOf(Separator);
+                var numberStartPosition = separator + Separator.Length;
+
+                var plop = currentLine.Slice(0, separator).ToArray();
+                var plops = Encoding.UTF8.GetString(plop);
+
+                var plip = currentLine.Slice(numberStartPosition, currentLine.Length - numberStartPosition).ToArray();
+                var plips = Encoding.UTF8.GetString(plip);
+
+                //results.Add(new StationData
+                //{
+                //    Name = currentLine.Slice(0, separator).ToArray(),
+                //    Temp = currentLine.Slice(numberStartPosition, currentLine.Length - numberStartPosition).ToArray();
+                //    //TODO pase number as short rather than decimal, store the number of number after the dot
+                //    // unicode number are always on 1 byte
+                //});
+
+                lastFilePosition += nextLineFeed;
+            }
         }
+
+        return results;
     }
 }

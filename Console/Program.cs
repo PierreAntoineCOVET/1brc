@@ -8,7 +8,7 @@ var sw = new Stopwatch();
 sw.Start();
 
 var fileName = "measurements_1M.txt";
-var filePath = Path.Combine("C:\\Users\\pierr\\source\\repos\\1brc\\Data", fileName);
+var filePath = Path.Combine("C:\\Users\\pacovet\\1brcData", fileName);
 var fileHandle = File.OpenHandle(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
 var fileSegments = FileSegmenter.GetSegments(fileHandle, Environment.ProcessorCount);
@@ -16,13 +16,13 @@ var fileSegments = FileSegmenter.GetSegments(fileHandle, Environment.ProcessorCo
 Orchestrator.RunSequential(fileSegments, fileHandle);
 
 sw.Stop();
-Console.WriteLine($"In Main {sw.ElapsedMilliseconds,6} ms");
+System.Console.WriteLine($"In Main {sw.ElapsedMilliseconds,6} ms");
 
 Span<byte> buffer = stackalloc byte[128];
 
 foreach (var segment in fileSegments)
 {
-    Console.WriteLine(segment);
+    System.Console.WriteLine(segment);
 
     RandomAccess.Read(fileHandle, buffer, segment.Offset);
     var startOfSegment = Encoding.UTF8.GetString(buffer);
@@ -30,9 +30,9 @@ foreach (var segment in fileSegments)
     RandomAccess.Read(fileHandle, buffer, segment.End - 128);
     var endOfSegment = Encoding.UTF8.GetString(buffer);
 
-    Console.WriteLine(startOfSegment);
-    Console.WriteLine(endOfSegment);
-    Console.WriteLine();
+    System.Console.WriteLine(startOfSegment);
+    System.Console.WriteLine(endOfSegment);
+    System.Console.WriteLine();
 }
 
-Console.WriteLine($"File length {RandomAccess.GetLength(fileHandle)} ms");
+System.Console.WriteLine($"File length {RandomAccess.GetLength(fileHandle)} ms");
