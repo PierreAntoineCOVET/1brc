@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Text;
 using System.Threading.Tasks;
@@ -37,8 +38,6 @@ class Parser
             existingLine.Max = Math.Max(existingLine.Max, line.Temp);
             existingLine.Min = Math.Min(existingLine.Min, line.Temp);
             existingLine.Sum += line.Temp;
-
-            parsedLines[line.Name] = existingLine;
         }
         else
         {
@@ -47,7 +46,6 @@ class Parser
                 Count = 1,
                 Max = line.Temp,
                 Min = line.Temp,
-                Name = line.Name,
                 Sum = line.Temp
             });
         }
@@ -88,7 +86,7 @@ class Parser
 
                 var station = new StationData
                 {
-                    Name = Encoding.UTF8.GetString(currentLine.Slice(0, separator).ToArray()),
+                    Name = Encoding.UTF8.GetString(currentLine.Slice(0, separator)),
                     Temp = ParseTemp(currentLine.Slice(numberStartPosition))
                 };
                 stationDatas.Add(station);
@@ -109,15 +107,13 @@ class Parser
     /// <returns>The temp as short.</returns>
     private static short ParseTemp(Span<byte> byteTemp)
     {
-        var newTemp = new List<byte>(byteTemp.Length - DecimalPoint.Length);
-
         var decimalPointIndex = byteTemp.IndexOf(DecimalPoint);
 
         var indexAfterDecimal = decimalPointIndex + DecimalPoint.Length;
 
-        newTemp.AddRange(byteTemp.Slice(0, decimalPointIndex));
-        newTemp.AddRange(byteTemp.Slice(indexAfterDecimal));
+        var tempString = Encoding.UTF8.GetString(byteTemp.Slice(0, decimalPointIndex))
+            + Encoding.UTF8.GetString(byteTemp.Slice(indexAfterDecimal, byteTemp.Length - indexAfterDecimal - 2));
 
-        return short.Parse(Encoding.UTF8.GetString(newTemp.ToArray()));
+        return short.Parse(tempString);
     }
 }

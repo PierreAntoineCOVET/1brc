@@ -20,7 +20,7 @@ static class Orchestrator
             Aggregate(parsedData, aggregatedStations);
         }
 
-        return ToString(aggregatedStations.Values);
+        return ToString(aggregatedStations);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -44,17 +44,48 @@ static class Orchestrator
 
         await Task.WhenAll(tasks);
 
-        return ToString(aggregatedStations.Values);
+        return ToString(aggregatedStations);
     }
 
-    private static string ToString(IEnumerable<AggregatedStationData> aggregatedStationDatas)
+    public static string RunWithThread(FileSegment[] segments, SafeFileHandle handle)
+    {
+        var aggregatedStations = new ConcurrentDictionary<string, AggregatedStationData>();
+        var threads = new Thread[segments.Length].AsSpan();
+
+        for(var i = 0; i < segments.Length; i++)
+        {
+            var segment = segments[i];
+            var thread = new Thread(() =>
+            {
+                var parser = new Parser();
+                var parsedData = parser.Parse(segment, handle);
+
+                Aggregate(parsedData, aggregatedStations);
+            })
+            {
+                Priority = ThreadPriority.Highest
+            };
+
+            threads[i] = thread;
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        return ToString(aggregatedStations);
+    }
+
+    private static string ToString(IEnumerable<KeyValuePair<string, AggregatedStationData>> aggregatedStationDatas)
     {
         var resultStringBuilder = new StringBuilder();
 
-        foreach (var station in aggregatedStationDatas.OrderBy(s => s.Name))
+        foreach (var station in aggregatedStationDatas.OrderBy(s => s.Key))
         {
             resultStringBuilder
-                .Append($"{station.Name};{(double)station.Min / 10};{Round(station.Sum / station.Count) / 10};{(double)station.Max / 10}\n");
+                .Append($"{station.Key};{(double)station.Value.Min / 10};{Round(station.Value.Sum / station.Value.Count) / 10};{(double)station.Value.Max / 10}\n");
         }
 
         return resultStringBuilder.ToString();
@@ -71,7 +102,6 @@ static class Orchestrator
                     Count = oldValue.Count + station.Value.Count,
                     Max = Math.Max(oldValue.Max, station.Value.Max),
                     Min = Math.Min(oldValue.Min, station.Value.Min),
-                    Name = key,
                     Sum = oldValue.Sum + station.Value.Sum
                 };
             });
