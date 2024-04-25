@@ -7,32 +7,17 @@ using My1Brc;
 var sw = new Stopwatch();
 sw.Start();
 
-var fileName = "measurements_1M.txt";
+var fileName = "measurements_10K.txt";
+//var fileName = "measurements_1M.txt";
+//var fileName = "measurements_1B.txt";
 var filePath = Path.Combine("C:\\Users\\pacovet\\1brcData", fileName);
 var fileHandle = File.OpenHandle(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
 var fileSegments = FileSegmenter.GetSegments(fileHandle, Environment.ProcessorCount);
 
-Orchestrator.RunSequential(fileSegments, fileHandle);
+var aggregatedData = Orchestrator.RunSequential(fileSegments, fileHandle);
+
+System.Console.Write(aggregatedData);
 
 sw.Stop();
 System.Console.WriteLine($"In Main {sw.ElapsedMilliseconds,6} ms");
-
-Span<byte> buffer = stackalloc byte[128];
-
-foreach (var segment in fileSegments)
-{
-    System.Console.WriteLine(segment);
-
-    RandomAccess.Read(fileHandle, buffer, segment.Offset);
-    var startOfSegment = Encoding.UTF8.GetString(buffer);
-
-    RandomAccess.Read(fileHandle, buffer, segment.End - 128);
-    var endOfSegment = Encoding.UTF8.GetString(buffer);
-
-    System.Console.WriteLine(startOfSegment);
-    System.Console.WriteLine(endOfSegment);
-    System.Console.WriteLine();
-}
-
-System.Console.WriteLine($"File length {RandomAccess.GetLength(fileHandle)} ms");

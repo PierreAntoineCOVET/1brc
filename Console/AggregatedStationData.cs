@@ -6,9 +6,12 @@ using System.Threading.Tasks;
 
 namespace Console
 {
-    public record struct StationData
+    public record struct AggregatedStationData
     {
         public string Name;
-        public short Temp;
+        public short Min;
+        public short Max;
+        public long Sum;
+        public int Count;
     }
 }

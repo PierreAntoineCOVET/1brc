@@ -15,25 +15,50 @@ class Parser
     private const int ReadBufferSize = 512;
     private static readonly byte[] LineFeed = Encoding.UTF8.GetBytes("\n");
     private static readonly byte[] Separator = Encoding.UTF8.GetBytes(";");
+    private static readonly byte[] DecimalPoint = Encoding.UTF8.GetBytes(".");
 
-    public void Parse(FileSegment fileSegment, SafeFileHandle fileHandle)
+    public Dictionary<string, AggregatedStationData> Parse(FileSegment fileSegment, SafeFileHandle fileHandle)
     {
-        foreach (var byteLine in GetByteLines(fileSegment, fileHandle))
+        var aggregatedLines = new Dictionary<string, AggregatedStationData>();
+
+        foreach (var byteLine in GetStationDataFromByteLine(fileSegment, fileHandle))
         {
-            Aggregate(byteLine);
-        }        
+            Aggregate(byteLine, aggregatedLines);
+        }
+
+        return aggregatedLines;
     }
 
-    private void Aggregate(StationData line)
+    private static void Aggregate(StationData line, Dictionary<string, AggregatedStationData> parsedLines)
     {
-        System.Console.WriteLine(Encoding.UTF8.GetString(line.Name));
-        System.Console.WriteLine(Encoding.UTF8.GetString(line.Temp));
+        if (parsedLines.TryGetValue(line.Name, out var existingLine))
+        {
+            existingLine.Count++;
+            existingLine.Max = Math.Max(existingLine.Max, line.Temp);
+            existingLine.Min = Math.Min(existingLine.Max, line.Temp);
+            existingLine.Sum += line.Temp;
+        }
+        else
+        {
+            parsedLines.Add(line.Name, new AggregatedStationData
+            {
+                Count = 1,
+                Max = line.Temp,
+                Min = line.Temp,
+                Name = line.Name,
+                Sum = line.Temp
+            });
+        }
     }
 
-    private static IEnumerable<StationData> GetByteLines(FileSegment fileSegment, SafeFileHandle fileHandle)
+    /// <summary>
+    /// Parse every line of the file segment into a <see cref="StationData"/>.
+    /// </summary>
+    /// <param name="fileSegment">File segment to parse.</param>
+    /// <param name="fileHandle">Handle to the actual file.</param>
+    /// <returns>Enumerable of parsed station data.</returns>
+    private IEnumerable<StationData> GetStationDataFromByteLine(FileSegment fileSegment, SafeFileHandle fileHandle)
     {
-        var results = new List<StationData>();
-
         long fileLength = RandomAccess.GetLength(fileHandle);
 
         var currentFilePosition = fileSegment.Offset;
@@ -56,25 +81,70 @@ class Parser
                 var separator = currentLine.IndexOf(Separator);
                 var numberStartPosition = separator + Separator.Length;
 
-                var plop = currentLine.Slice(0, separator).ToArray();
-                var plops = Encoding.UTF8.GetString(plop);
-
-                var plip = currentLine.Slice(numberStartPosition, currentLine.Length - numberStartPosition).ToArray();
-                var plips = Encoding.UTF8.GetString(plip);
-
-                //results.Add(new StationData
-                //{
-                //    Name = currentLine.Slice(0, separator).ToArray(),
-                //    Temp = currentLine.Slice(numberStartPosition, currentLine.Length - numberStartPosition).ToArray();
-                //    //TODO pase number as short rather than decimal, store the number of number after the dot
-                //    // unicode number are always on 1 byte
-                //    // Look to extract the sign also ?
-                //});
+                yield return new StationData
+                {
+                    Name = Encoding.UTF8.GetString(currentLine.Slice(0, separator).ToArray()),
+                    Temp = ParseTemp(currentLine.Slice(numberStartPosition))
+                };
 
                 lastFilePosition += nextLineFeed;
             }
         }
+    }
+    //private IEnumerable<StationData> GetStationDataFromByteLine(FileSegment fileSegment, SafeFileHandle fileHandle)
+    //{
+    //    var stationDatas = new List<StationData>();
+    //    long fileLength = RandomAccess.GetLength(fileHandle);
 
-        return results;
+    //    var currentFilePosition = fileSegment.Offset;
+    //    var endOfSegment = fileSegment.End;
+
+    //    Span<byte> buffer = stackalloc byte[ReadBufferSize];
+
+    //    while (currentFilePosition < endOfSegment)
+    //    {
+    //        RandomAccess.Read(fileHandle, buffer, currentFilePosition);
+
+    //        var lastLineFeed = buffer.LastIndexOf(LineFeed) + LineFeed.Length;
+    //        var lastFilePosition = 0;
+
+    //        while (lastFilePosition < lastLineFeed)
+    //        {
+    //            var nextLineFeed = buffer.IndexOf(LineFeed) + LineFeed.Length;
+    //            var currentLine = buffer.Slice(lastFilePosition, nextLineFeed);
+
+    //            var separator = currentLine.IndexOf(Separator);
+    //            var numberStartPosition = separator + Separator.Length;
+
+    //            stationDatas.Add(new StationData
+    //            {
+    //                Name = Encoding.UTF8.GetString(currentLine.Slice(0, separator).ToArray()),
+    //                Temp = ParseTemp(currentLine.Slice(numberStartPosition))
+    //            });
+
+    //            lastFilePosition += nextLineFeed;
+    //        }
+    //    }
+
+    //    return stationDatas;
+    //}
+
+    /// <summary>
+    /// Parse the temp into a short. Spec define all number to be 1 number after decimal.
+    /// </summary>
+    /// <param name="byteTemp">Line temperature in byte.</param>
+    /// <returns>The temp as short.</returns>
+    private static short ParseTemp(Span<byte> byteTemp)
+    {
+        var newTemp = new List<byte>(byteTemp.Length - DecimalPoint.Length);
+
+        var decimalPointIndex = byteTemp.IndexOf(DecimalPoint);
+
+        var indexAfterDecimal = decimalPointIndex + DecimalPoint.Length;
+
+        newTemp.AddRange(byteTemp.Slice(0, decimalPointIndex));
+        newTemp.AddRange(byteTemp.Slice(indexAfterDecimal));
+
+        return short.Parse(Encoding.UTF8.GetString(newTemp.ToArray()));
     }
 }
