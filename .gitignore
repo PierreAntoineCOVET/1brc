@@ -7,3 +7,6 @@
 /Console/obj
 /Tests/obj
 /Tests/bin/Debug/net8.0
+/Console/bin/Release/net8.0
+/Console/Properties/PublishProfiles/FolderProfile.pubxml.user
+/Console/Console.csproj.user
