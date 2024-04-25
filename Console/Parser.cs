@@ -35,8 +35,10 @@ class Parser
         {
             existingLine.Count++;
             existingLine.Max = Math.Max(existingLine.Max, line.Temp);
-            existingLine.Min = Math.Min(existingLine.Max, line.Temp);
+            existingLine.Min = Math.Min(existingLine.Min, line.Temp);
             existingLine.Sum += line.Temp;
+
+            parsedLines[line.Name] = existingLine;
         }
         else
         {
@@ -59,6 +61,7 @@ class Parser
     /// <returns>Enumerable of parsed station data.</returns>
     private IEnumerable<StationData> GetStationDataFromByteLine(FileSegment fileSegment, SafeFileHandle fileHandle)
     {
+        var stationDatas = new List<StationData>();
         long fileLength = RandomAccess.GetLength(fileHandle);
 
         var currentFilePosition = fileSegment.Offset;
@@ -68,66 +71,36 @@ class Parser
 
         while (currentFilePosition < endOfSegment)
         {
-            RandomAccess.Read(fileHandle, buffer, currentFilePosition);
+            var bufferSize = RandomAccess.Read(fileHandle, buffer, currentFilePosition);
 
             var lastLineFeed = buffer.LastIndexOf(LineFeed) + LineFeed.Length;
-            var lastFilePosition = 0;
+            var lastBufferPosition = 0;
+            var lastReadablePosition = Math.Min(bufferSize, lastLineFeed);
 
-            while (lastFilePosition < lastLineFeed)
+            while (lastBufferPosition < lastReadablePosition)
             {
-                var nextLineFeed = buffer.IndexOf(LineFeed) + LineFeed.Length;
-                var currentLine = buffer.Slice(lastFilePosition, nextLineFeed);
+                var nextLineFeed = buffer.Slice(lastBufferPosition).IndexOf(LineFeed) + LineFeed.Length;
+                var currentLine = buffer.Slice(lastBufferPosition, nextLineFeed);
 
                 var separator = currentLine.IndexOf(Separator);
+
                 var numberStartPosition = separator + Separator.Length;
 
-                yield return new StationData
+                var station = new StationData
                 {
                     Name = Encoding.UTF8.GetString(currentLine.Slice(0, separator).ToArray()),
                     Temp = ParseTemp(currentLine.Slice(numberStartPosition))
                 };
+                stationDatas.Add(station);
 
-                lastFilePosition += nextLineFeed;
+                lastBufferPosition += nextLineFeed;
             }
+
+            currentFilePosition += lastLineFeed;
         }
+
+        return stationDatas;
     }
-    //private IEnumerable<StationData> GetStationDataFromByteLine(FileSegment fileSegment, SafeFileHandle fileHandle)
-    //{
-    //    var stationDatas = new List<StationData>();
-    //    long fileLength = RandomAccess.GetLength(fileHandle);
-
-    //    var currentFilePosition = fileSegment.Offset;
-    //    var endOfSegment = fileSegment.End;
-
-    //    Span<byte> buffer = stackalloc byte[ReadBufferSize];
-
-    //    while (currentFilePosition < endOfSegment)
-    //    {
-    //        RandomAccess.Read(fileHandle, buffer, currentFilePosition);
-
-    //        var lastLineFeed = buffer.LastIndexOf(LineFeed) + LineFeed.Length;
-    //        var lastFilePosition = 0;
-
-    //        while (lastFilePosition < lastLineFeed)
-    //        {
-    //            var nextLineFeed = buffer.IndexOf(LineFeed) + LineFeed.Length;
-    //            var currentLine = buffer.Slice(lastFilePosition, nextLineFeed);
-
-    //            var separator = currentLine.IndexOf(Separator);
-    //            var numberStartPosition = separator + Separator.Length;
-
-    //            stationDatas.Add(new StationData
-    //            {
-    //                Name = Encoding.UTF8.GetString(currentLine.Slice(0, separator).ToArray()),
-    //                Temp = ParseTemp(currentLine.Slice(numberStartPosition))
-    //            });
-
-    //            lastFilePosition += nextLineFeed;
-    //        }
-    //    }
-
-    //    return stationDatas;
-    //}
 
     /// <summary>
     /// Parse the temp into a short. Spec define all number to be 1 number after decimal.

@@ -1,6 +1,7 @@
 ﻿using Console;
 using Microsoft.Win32.SafeHandles;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace My1Brc;
@@ -19,12 +20,41 @@ static class Orchestrator
             Aggregate(parsedData, aggregatedStations);
         }
 
+        return ToString(aggregatedStations.Values);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static double Round(double number) => Math.Round(number, MidpointRounding.AwayFromZero);
+
+    public static async Task<string> RunWithTasks(FileSegment[] segments, SafeFileHandle handle)
+    {
+        var aggregatedStations = new ConcurrentDictionary<string, AggregatedStationData>();
+        var tasks = new List<Task>(segments.Length);
+
+        foreach (var segment in segments)
+        {
+            tasks.Add(Task.Run(() =>
+            {
+                var parser = new Parser();
+                var parsedData = parser.Parse(segment, handle);
+
+                Aggregate(parsedData, aggregatedStations);
+            }));
+        }
+
+        await Task.WhenAll(tasks);
+
+        return ToString(aggregatedStations.Values);
+    }
+
+    private static string ToString(IEnumerable<AggregatedStationData> aggregatedStationDatas)
+    {
         var resultStringBuilder = new StringBuilder();
-        
-        foreach (var station in aggregatedStations.Values.OrderBy(s => s.Name))
+
+        foreach (var station in aggregatedStationDatas.OrderBy(s => s.Name))
         {
             resultStringBuilder
-                .Append($"{station.Name};{station.Min};{Math.Round((double)((station.Sum / 10) / station.Count), 1, MidpointRounding.AwayFromZero)};{station.Max}\n");
+                .Append($"{station.Name};{(double)station.Min / 10};{Round(station.Sum / station.Count) / 10};{(double)station.Max / 10}\n");
         }
 
         return resultStringBuilder.ToString();

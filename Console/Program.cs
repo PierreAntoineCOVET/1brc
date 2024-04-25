@@ -1,5 +1,4 @@
 ﻿﻿using System.Diagnostics;
-using System.Text;
 using My1Brc;
 
 // Inspired from https://github.com/nietras/1brc.cs
@@ -15,9 +14,15 @@ var fileHandle = File.OpenHandle(filePath, FileMode.Open, FileAccess.Read, FileS
 
 var fileSegments = FileSegmenter.GetSegments(fileHandle, Environment.ProcessorCount);
 
-var aggregatedData = Orchestrator.RunSequential(fileSegments, fileHandle);
+//var aggregatedData = Orchestrator.RunSequential(fileSegments, fileHandle);
+var aggregatedData = await Orchestrator.RunWithTasks(fileSegments, fileHandle);
 
 System.Console.Write(aggregatedData);
 
 sw.Stop();
 System.Console.WriteLine($"In Main {sw.ElapsedMilliseconds,6} ms");
+
+//foreach (var segment in fileSegments)
+//{
+//    System.Console.WriteLine($"{segment.Offset} - {segment.Offset + segment.Length}");
+//}
