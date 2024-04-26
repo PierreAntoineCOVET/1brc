@@ -22,7 +22,8 @@ else
     var fileName = "measurements_10K.txt";
     //var fileName = "measurements_1M.txt";
     //var fileName = "measurements_1B.txt";
-    filePath = Path.Combine("C:\\Users\\pacovet\\1brcData", fileName);
+    //filePath = Path.Combine("C:\\Users\\pacovet\\1brcData", fileName);
+    filePath = Path.Combine("C:\\Users\\pierr\\source\\repos\\1brc\\Data", fileName);
 }
 
 var fileHandle = File.OpenHandle(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);

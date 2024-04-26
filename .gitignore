@@ -10,3 +10,6 @@
 /Console/bin/Release/net8.0
 /Console/Properties/PublishProfiles/FolderProfile.pubxml.user
 /Console/Console.csproj.user
+/Data
+/Tests/bin/Release/net8.0
+/Console/Properties/PublishProfiles/FolderProfile.pubxml
