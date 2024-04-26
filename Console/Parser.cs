@@ -20,46 +20,7 @@ class Parser
 
     public Dictionary<string, AggregatedStationData> Parse(FileSegment fileSegment, SafeFileHandle fileHandle)
     {
-        var aggregatedLines = new Dictionary<string, AggregatedStationData>();
-
-        foreach (var byteLine in GetStationDataFromByteLine(fileSegment, fileHandle))
-        {
-            Aggregate(byteLine, aggregatedLines);
-        }
-
-        return aggregatedLines;
-    }
-
-    private static void Aggregate(StationData line, Dictionary<string, AggregatedStationData> parsedLines)
-    {
-        if (parsedLines.TryGetValue(line.Name, out var existingLine))
-        {
-            existingLine.Count++;
-            existingLine.Max = Math.Max(existingLine.Max, line.Temp);
-            existingLine.Min = Math.Min(existingLine.Min, line.Temp);
-            existingLine.Sum += line.Temp;
-        }
-        else
-        {
-            parsedLines.Add(line.Name, new AggregatedStationData
-            {
-                Count = 1,
-                Max = line.Temp,
-                Min = line.Temp,
-                Sum = line.Temp
-            });
-        }
-    }
-
-    /// <summary>
-    /// Parse every line of the file segment into a <see cref="StationData"/>.
-    /// </summary>
-    /// <param name="fileSegment">File segment to parse.</param>
-    /// <param name="fileHandle">Handle to the actual file.</param>
-    /// <returns>Enumerable of parsed station data.</returns>
-    private IEnumerable<StationData> GetStationDataFromByteLine(FileSegment fileSegment, SafeFileHandle fileHandle)
-    {
-        var stationDatas = new List<StationData>();
+        var dataAggregator = new DataAggregator();
         long fileLength = RandomAccess.GetLength(fileHandle);
 
         var currentFilePosition = fileSegment.Offset;
@@ -69,11 +30,6 @@ class Parser
 
         while (currentFilePosition < endOfSegment)
         {
-            //yield return new StationData
-            //{
-            //    Name = "",
-            //    Temp = 1
-            //};
             var bufferSize = RandomAccess.Read(fileHandle, buffer, currentFilePosition);
 
             var lastLineFeed = buffer.LastIndexOf(LineFeed) + LineFeed.Length;
@@ -93,7 +49,7 @@ class Parser
                     Encoding.UTF8.GetString(currentLine.Slice(0, separator)),
                     ParseTemp(currentLine.Slice(numberStartPosition))
                 );
-                stationDatas.Add(station);
+                dataAggregator.Aggregate(station);
 
                 lastBufferPosition += nextLineFeed;
             }
@@ -101,7 +57,7 @@ class Parser
             currentFilePosition += lastLineFeed;
         }
 
-        return stationDatas;
+        return dataAggregator.InternalDictionay;
     }
 
     /// <summary>
