@@ -29,17 +29,18 @@ static class Orchestrator
     public static async Task<string> RunWithTasks(FileSegment[] segments, SafeFileHandle handle)
     {
         var aggregatedStations = new ConcurrentDictionary<string, AggregatedStationData>();
-        var tasks = new List<Task>(segments.Length);
+        var tasks = new Task[segments.Length];
 
-        foreach (var segment in segments)
+        for (var i = 0; i < segments.Length; i++)
         {
-            tasks.Add(Task.Run(() =>
+            var segment = segments[i];
+            tasks[i] = Task.Run(() =>
             {
                 var parser = new Parser();
                 var parsedData = parser.Parse(segment, handle);
 
                 Aggregate(parsedData, aggregatedStations);
-            }));
+            });
         }
 
         await Task.WhenAll(tasks);
