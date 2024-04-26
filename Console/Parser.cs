@@ -69,6 +69,11 @@ class Parser
 
         while (currentFilePosition < endOfSegment)
         {
+            //yield return new StationData
+            //{
+            //    Name = "",
+            //    Temp = 1
+            //};
             var bufferSize = RandomAccess.Read(fileHandle, buffer, currentFilePosition);
 
             var lastLineFeed = buffer.LastIndexOf(LineFeed) + LineFeed.Length;
@@ -84,11 +89,10 @@ class Parser
 
                 var numberStartPosition = separator + Separator.Length;
 
-                var station = new StationData
-                {
-                    Name = Encoding.UTF8.GetString(currentLine.Slice(0, separator)),
-                    Temp = ParseTemp(currentLine.Slice(numberStartPosition))
-                };
+                var station = new StationData(
+                    Encoding.UTF8.GetString(currentLine.Slice(0, separator)),
+                    ParseTemp(currentLine.Slice(numberStartPosition))
+                );
                 stationDatas.Add(station);
 
                 lastBufferPosition += nextLineFeed;

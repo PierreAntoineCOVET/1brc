@@ -6,9 +6,5 @@ using System.Threading.Tasks;
 
 namespace Console
 {
-    public struct StationData
-    {
-        public string Name;
-        public short Temp;
-    }
+    public readonly record struct StationData (string Name, short Temp);
 }
