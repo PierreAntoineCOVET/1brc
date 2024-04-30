@@ -1,6 +1,7 @@
 ﻿using Console;
 using Microsoft.Win32.SafeHandles;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
@@ -18,9 +19,18 @@ class Parser
     private static readonly byte[] Separator = Encoding.UTF8.GetBytes(";");
     private static readonly byte[] DecimalPoint = Encoding.UTF8.GetBytes(".");
 
+    private readonly IDataAggregator DataAggregator;
+
+    public Parser(IDataAggregator dataAggregator = null)
+    {
+
+        this.DataAggregator = dataAggregator != null
+            ? dataAggregator
+            : new DataAggregator();
+    }
+
     public Dictionary<string, AggregatedStationData> Parse(FileSegment fileSegment, SafeFileHandle fileHandle)
     {
-        var dataAggregator = new DataAggregator();
         long fileLength = RandomAccess.GetLength(fileHandle);
 
         var currentFilePosition = fileSegment.Offset;
@@ -49,7 +59,7 @@ class Parser
                     Encoding.UTF8.GetString(currentLine.Slice(0, separator)),
                     ParseTemp(currentLine.Slice(numberStartPosition))
                 );
-                dataAggregator.Aggregate(station);
+                DataAggregator.Aggregate(station);
 
                 lastBufferPosition += nextLineFeed;
             }
@@ -57,7 +67,7 @@ class Parser
             currentFilePosition += lastLineFeed;
         }
 
-        return dataAggregator.InternalDictionay;
+        return DataAggregator.InternalDictionay;
     }
 
     /// <summary>

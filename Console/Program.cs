@@ -35,6 +35,8 @@ var aggregatedData = args.Length > 1
     {
         "seq" => Orchestrator.RunSequential(fileSegments, fileHandle),
         "task" => await Orchestrator.RunWithTasks(fileSegments, fileHandle),
+        "taskShared" => await Orchestrator.RunWithTasksAndSharedDictionnary(fileSegments, fileHandle),
+        "taskNoConcurency" => await Orchestrator.RunWithTasksNoConcurency(fileSegments, fileHandle),
         "thread" => Orchestrator.RunWithThread(fileSegments, fileHandle),
         "naive" => await Naive(filePath),
         _ => throw new Exception($"Execution mode {args[1]} not supported. Use 'seq', 'task', 'thread', 'naive'.")

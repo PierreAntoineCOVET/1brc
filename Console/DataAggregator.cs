@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Console;
 
-internal class DataAggregator
+internal class DataAggregator : IDataAggregator
 {
     public Dictionary<string, AggregatedStationData> InternalDictionay { get; } = new Dictionary<string, AggregatedStationData>();
 

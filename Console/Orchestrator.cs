@@ -48,6 +48,51 @@ static class Orchestrator
         return ToString(aggregatedStations);
     }
 
+    public static async Task<string> RunWithTasksNoConcurency(FileSegment[] segments, SafeFileHandle handle)
+    {
+        var tasks = new Task<Dictionary<string, AggregatedStationData>>[segments.Length];
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            var segment = segments[i];
+            tasks[i] = Task.Run(() =>
+            {
+                var parser = new Parser();
+                return parser.Parse(segment, handle);
+            });
+        }
+
+        await Task.WhenAll(tasks);
+
+        for (int i=1; i<tasks.Length; i++)
+        {
+            var task = tasks[i];
+            Aggregate(task.Result, tasks[0].Result);
+        }
+
+        return ToString(tasks[0].Result);
+    }
+
+    public static async Task<string> RunWithTasksAndSharedDictionnary(FileSegment[] segments, SafeFileHandle handle)
+    {
+        var concurentDataAggregator = new ConcurentDataAggregator();
+        var tasks = new Task[segments.Length];
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            var segment = segments[i];
+            tasks[i] = Task.Run(() =>
+            {
+                var parser = new Parser(concurentDataAggregator);
+                _ = parser.Parse(segment, handle);
+            });
+        }
+
+        await Task.WhenAll(tasks);
+
+        return ToString(concurentDataAggregator.InternalConcurentDictionay.ToDictionary());
+    }
+
     public static string RunWithThread(FileSegment[] segments, SafeFileHandle handle)
     {
         var aggregatedStations = new ConcurrentDictionary<string, AggregatedStationData>();
@@ -106,6 +151,24 @@ static class Orchestrator
                     Sum = oldValue.Sum + station.Value.Sum
                 };
             });
+        }
+    }
+
+    private static void Aggregate(Dictionary<string, AggregatedStationData> segmentStations, Dictionary<string, AggregatedStationData> globalStations)
+    {
+        foreach (var station in segmentStations)
+        {
+            if(globalStations.TryGetValue(station.Key, out var aggregatedStationData))
+            {
+                aggregatedStationData.Count += station.Value.Count;
+                aggregatedStationData.Max = Math.Max(aggregatedStationData.Max, station.Value.Max);
+                aggregatedStationData.Min = Math.Min(aggregatedStationData.Min, station.Value.Min);
+                aggregatedStationData.Sum += station.Value.Sum;
+            }
+            else
+            {
+                globalStations.Add(station.Key, station.Value);
+            }
         }
     }
 }
